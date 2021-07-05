@@ -20,7 +20,8 @@ proc raisePackageError(msg: string) =
 proc raisePackageError(p: CfgParser, msg: string) =
   ## Raises a ``PackageError`` containing message ``msg`` using info from ``p``
   ## to show the location of the error.
-  raise newException(PackageError, msg)
+  raise newException(PackageError, "Error parsing $1($2:$3): $4" %
+    [p.getFilename, $p.getLine, $p.getColumn, msg])
 
 proc `==`*(a, b: Target): bool =
   result = true
@@ -83,9 +84,9 @@ proc parsePackageStream*(s: Stream, filename: string): seq[Target] =
       case e.section.toLower
       of "package":
         if section == "package":
-          raisePackageError("duplicate [package] section")
+          p.raisePackageError("duplicate [package] section")
         elif section.len > 0:
-          raisePackageError("[package] section must be declared before other sections")
+          p.raisePackageError("[package] section must be declared before other sections")
         context = "package"
       of "target":
         case context
@@ -100,12 +101,12 @@ proc parsePackageStream*(s: Stream, filename: string): seq[Target] =
         discard
       of "package.sources", "package.rules", "package.aliases":
         if context in ["target"]:
-          raisePackageError(fmt"[{e.section}] must be declared within [package]")
+          p.raisePackageError(fmt"[{e.section}] must be declared within [package]")
       of "target.sources", "target.rules", "target.aliases":
         if context in ["package", ""]:
-          raisePackageError(fmt"[{e.section}] must be declared within [target]")
+          p.raisePackageError(fmt"[{e.section}] must be declared within [target]")
       else:
-        raisePackageError(fmt"invalid section [{e.section}]")
+        p.raisePackageError(fmt"invalid section [{e.section}]")
 
       # Trim context from subsection
       section = e.section.toLower.rsplit('.', maxsplit = 1)[^1]
@@ -138,7 +139,7 @@ proc parsePackageStream*(s: Stream, filename: string): seq[Target] =
         of "exclude": target.excludes.add(e.value)
         of "filter": target.filters.add(e.value)
         else:
-          raisePackageError(fmt"invalid key '{e.key}' for section [{context}.{section}]")
+          p.raisePackageError(fmt"invalid key '{e.key}' for section [{context}.{section}]")
       of "rules":
         target.rules.add((e.key, e.value))
       of "aliases":
@@ -146,7 +147,7 @@ proc parsePackageStream*(s: Stream, filename: string): seq[Target] =
       else:
         discard
     of cfgError:
-      raisePackageError(e.msg)
+      p.raisePackageError(e.msg)
   close(p)
 
 proc parsePackageString*(s: string, filename = "[stream]"): seq[Target] =
