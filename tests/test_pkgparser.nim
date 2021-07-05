@@ -19,8 +19,6 @@ template checkErrorMsg(msg: string, body: untyped) =
     check msg in getCurrentExceptionMsg()
     raise
 
-  
-
 suite "Cfg file parsing":
   test "Error on malformed syntax":
     expect PackageError:
@@ -211,6 +209,21 @@ suite "Cfg file parsing":
 
         [target]
         file = "bar.mod"
+        """)
+
+  test "Error on invalid target name":
+    expect PackageError:
+      checkErrorMsg "invalid target name":
+        discard parsePackageString("""
+        [target]
+        name = "all"
+        """)
+
+    expect PackageError:
+      checkErrorMsg "invalid target name":
+        discard parsePackageString("""
+        [target]
+        name = "$sm-utils"
         """)
 
   test "{package,target}.{version,url,author} fields ignored":

@@ -44,8 +44,6 @@ proc addTarget(targets: var seq[Target], target: var Target, defaults: Target) =
   ## `description` are copied from ``defaults``.
   if target.name.len == 0:
     raisePackageError(fmt"target {targets.len + 1} is unnamed")
-  if target.name == "all" or not target.name.validTargetChars:
-    raisePackageError("illegal target name " & target.name.escape)
 
   # Merge unset aliases from ``defaults``
   for key, val in defaults.aliases.pairs:
@@ -115,8 +113,16 @@ proc parsePackageStream*(s: Stream, filename: string): seq[Target] =
       case section
       of "package", "target":
         case e.key
-        of "name": target.name = e.value.toLower
-        of "description": target.description = e.value
+        of "name":
+          if section == "target":
+            let name = e.value.toLower
+            if name == "all" or not name.validTargetChars:
+              p.raisePackageError(fmt"invalid target name '{name}'")
+            else:
+              target.name = name
+        of "description":
+          if section == "target":
+            target.description = e.value
         of "file": target.file = e.value
         of "flags": target.flags.add(e.value)
         of "modName": target.modName = e.value
